@@ -32,8 +32,6 @@ namespace FindTripletsApp
             {
                 // <триплет, число повторений>
                 ConcurrentDictionary<string, int> tripletDictionary = new ConcurrentDictionary<string, int>();
-                // <триплет, индекс>
-                ConcurrentDictionary<string, int> tripletIndexDictionary = new ConcurrentDictionary<string, int>();
                 string fileString = streamReader.ReadToEnd();
 
                 if (fileString.Length < 4)
@@ -56,15 +54,10 @@ namespace FindTripletsApp
                     {
                         Parallel.For(0, fileString.Length - 3, new ParallelOptions { CancellationToken = cancelToken.Token }, i =>
                         {
-
                             string triplet = fileString.Substring(i, 3);
-                            // только алфавитно-цифровые символы в триплете
-                            if ((!tripletIndexDictionary.ContainsKey(triplet) || tripletIndexDictionary[triplet] > i) && Regex.IsMatch(triplet, @"\w{3}"))
+                            if (Regex.IsMatch(triplet, @"\w{3}"))
                             {
-                                // записываем индекс первого вхождения триплета
-                                tripletIndexDictionary[triplet] = i;
-                                MatchCollection mc = Regex.Matches(fileString.Substring(i + 1), triplet);
-                                tripletDictionary.AddOrUpdate(triplet, mc.Count + 1, (triplet, x) => x < mc.Count + 1 ? mc.Count + 1 : x);
+                                tripletDictionary.AddOrUpdate(triplet, 1, (triplet, x) => x + 1);
                             }
                         });
                     }
