@@ -13,7 +13,7 @@ namespace FindTripletsApp
 {
     class Program
     {
-      
+
         static void Main(string[] args)
         {
             Console.WriteLine("File name:");
@@ -32,6 +32,8 @@ namespace FindTripletsApp
             {
                 // <триплет, число повторений>
                 ConcurrentDictionary<string, int> tripletDictionary = new ConcurrentDictionary<string, int>();
+                // <триплет, индекс>
+                ConcurrentDictionary<string, int> tripletIndexDictionary = new ConcurrentDictionary<string, int>();
                 string fileString = streamReader.ReadToEnd();
 
                 if (fileString.Length < 4)
@@ -41,27 +43,28 @@ namespace FindTripletsApp
                 }
 
                 using (CancellationTokenSource cancelToken = new CancellationTokenSource())
-                {     
+                {
                     // останавливаем при нажатии клавиши
                     Task.Factory.StartNew(() =>
                     {
                         Console.ReadKey();
                         Console.WriteLine();
                         cancelToken.Cancel();
-                     });
+                    });
 
                     try
                     {
-                        Parallel.For(0, fileString.Length - 3, new ParallelOptions { CancellationToken = cancelToken.Token }, i => {
+                        Parallel.For(0, fileString.Length - 3, new ParallelOptions { CancellationToken = cancelToken.Token }, i =>
+                        {
 
                             string triplet = fileString.Substring(i, 3);
                             // только алфавитно-цифровые символы в триплете
-                            if (Regex.IsMatch(triplet, @"\w{3}")) 
+                            if ((!tripletIndexDictionary.ContainsKey(triplet) || tripletIndexDictionary[triplet] > i) && Regex.IsMatch(triplet, @"\w{3}"))
                             {
-                                if (fileString.IndexOf(triplet, i + 1) != -1)
-                                {
-                                    tripletDictionary.AddOrUpdate(triplet, 2, (triplet, x) => x + 1);
-                                }
+                                // записываем индекс первого вхождения триплета
+                                tripletIndexDictionary[triplet] = i;
+                                MatchCollection mc = Regex.Matches(fileString.Substring(i + 1), triplet);
+                                tripletDictionary.AddOrUpdate(triplet, mc.Count + 1, (triplet, x) => x < mc.Count + 1 ? mc.Count + 1 : x);
                             }
                         });
                     }
@@ -72,80 +75,12 @@ namespace FindTripletsApp
 
                     // вывод топ 10
                     var top = (from t in tripletDictionary
-                             orderby t.Value descending
-                             select t).Take(10);
+                               orderby t.Value descending
+                               select t).Take(10);
                     foreach (var each in top)
                         Console.WriteLine(each);
                 }
             }
         }
-
-
-        //######################################################################################################
-        //######################################################################################################
-        //######################################################################################################
-
-        static void nonParallelRegex(string filename)
-        {
-            StreamReader fs = new StreamReader(filename);
-            Regex regex = new Regex(@"(\w{3})(?=.*?\1)", RegexOptions.Singleline | RegexOptions.Compiled);
-            string str = fs.ReadToEnd();
-            Dictionary<string, int> myDict = new Dictionary<string, int>();
-
-            // Ищем
-            Match matchObj = regex.Match(str);
-            while (matchObj.Success)
-            {
-
-                if (myDict.ContainsKey(matchObj.Value))
-                    myDict[matchObj.Value]++;
-                else
-                    myDict[matchObj.Value] = 2;
-                matchObj = regex.Match(str, matchObj.Index + 1);
-            }
-
-            // Выводим
-            var top = (from t in myDict
-                     orderby t.Value descending
-                     select t).Take(10);
-
-            foreach (var gg in top)
-                Console.WriteLine(gg);
-
-            fs.Close();
-        }
-
-
-        static void nonParallelCount(string filename)
-        {
-            StreamReader streamReader = new StreamReader(filename);
-            string fileString = streamReader.ReadToEnd();
-            Dictionary<string, int> myDic = new Dictionary<string, int>();
-
-            for (int i = 0; i < fileString.Length - 3; i++)
-            {
-                string triplet = fileString.Substring(i, 3);
-                if (Regex.IsMatch(triplet, @"\w{3}"))
-                {
-                    if (fileString.IndexOf(triplet, i + 1) != -1)
-                    {
-                        if (myDic.ContainsKey(triplet))
-                            myDic[triplet]++;
-                        else
-                            myDic[triplet] = 2; ;
-                    }
-                }
-            }
-
-            var top = (from t in myDic
-                     orderby t.Value descending
-                     select t).Take(10);
-
-            foreach (var gg in top)
-                Console.WriteLine(gg);
-
-            streamReader.Close();
-        }
-
     }
 }
